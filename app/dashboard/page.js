@@ -8,9 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Users, MessageSquare, Lightbulb, TrendingUp, Bell } from 'lucide-react';
 import Header from '@/components/Header';
-import { supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { mockIdeas, mockCollaborations, mockNotifications } from '@/lib/mock-data';
 
 export default function DashboardPage() {
   const router = useRouter();
