@@ -7,9 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { CheckCircle, MessageSquare, Users, Lightbulb, TrendingUp, Award, ArrowUp } from 'lucide-react';
 import Header from '@/components/Header';
-import { supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { mockUser, mockNotifications } from '@/lib/mock-data';
 
 export default function NotificationsPage() {
   const router = useRouter();
