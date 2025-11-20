@@ -9,12 +9,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Users } from 'lucide-react';
 import Header from '@/components/Header';
-import { supabase } from '@/lib/supabase-client';
-import { toast } from 'sonner';
+import { mockUser, mockIdeas } from '@/lib/mock-data';
 
 export default function ExplorePage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
   const [ideas, setIdeas] = useState([]);
   const [filteredIdeas, setFilteredIdeas] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,43 +21,49 @@ export default function ExplorePage() {
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
-    checkUser();
+    loadIdeas();
   }, []);
 
   useEffect(() => {
     filterIdeas();
   }, [searchQuery, categoryFilter, ideas]);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/signin');
-      return;
-    }
-    setUser(user);
-    await fetchIdeas();
-  };
-
-  const fetchIdeas = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('ideas')
-        .select('*, profiles(full_name, email)')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setIdeas(data || []);
-      
-      // Extract unique categories
-      const uniqueCategories = [...new Set(data?.map(idea => idea.category).filter(Boolean))];
-      setCategories(uniqueCategories);
-    } catch (error) {
-      console.error('Error fetching ideas:', error);
-      toast.error('Failed to load ideas');
-    } finally {
-      setLoading(false);
-    }
+  const loadIdeas = () => {
+    // Add some extra mock ideas for variety
+    const extraIdeas = [
+      {
+        id: 'idea-3',
+        owner_id: 'user-3',
+        title: 'Virtual Reality Campus Tours',
+        description: 'Immersive VR experience for prospective students to explore campus remotely.',
+        tags: ['VR', 'Education', 'Technology'],
+        category: 'Education',
+        status: 'active',
+        opportunity_type: 'funding',
+        collaborator_count: 2,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'idea-4',
+        owner_id: 'user-4',
+        title: 'Eco-Friendly Delivery Network',
+        description: 'Carbon-neutral delivery service using electric vehicles and optimized routes.',
+        tags: ['Sustainability', 'Logistics', 'Green Tech'],
+        category: 'Sustainability',
+        status: 'active',
+        opportunity_type: 'both',
+        collaborator_count: 7,
+        created_at: new Date().toISOString(),
+      },
+    ];
+    
+    const allIdeas = [...mockIdeas, ...extraIdeas];
+    setIdeas(allIdeas);
+    
+    // Extract unique categories
+    const uniqueCategories = [...new Set(allIdeas.map(idea => idea.category).filter(Boolean))];
+    setCategories(uniqueCategories);
+    setLoading(false);
   };
 
   const filterIdeas = () => {
@@ -92,15 +96,14 @@ export default function ExplorePage() {
     return badges[opportunityType] || badges.team;
   };
 
-  const getInitials = (email) => {
-    if (!email) return 'U';
-    return email.charAt(0).toUpperCase();
+  const getInitials = (id) => {
+    return id?.charAt(0).toUpperCase() || 'U';
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header showBack user={user} />
+        <Header showBack />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">Loading...</div>
         </div>
@@ -110,7 +113,7 @@ export default function ExplorePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Header showBack user={user} />
+      <Header showBack />
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
@@ -165,12 +168,10 @@ export default function ExplorePage() {
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                            {getInitials(idea.profiles?.email)}
+                            {getInitials(idea.owner_id)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium">
-                          {idea.profiles?.full_name || idea.profiles?.email?.split('@')[0] || 'User'}
-                        </span>
+                        <span className="text-sm font-medium">Project Owner</span>
                       </div>
                       <Badge variant={opportunityBadge.variant}>{opportunityBadge.label}</Badge>
                     </div>

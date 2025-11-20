@@ -7,198 +7,70 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Send, Phone, Video, MoreVertical, Plus } from 'lucide-react';
 import Header from '@/components/Header';
-import { supabase } from '@/lib/supabase-client';
-import { getSocket } from '@/lib/socket-client';
+import { mockUser, mockConversations, mockMessages } from '@/lib/mock-data';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function MessagesPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
-  const socketRef = useRef(null);
 
   useEffect(() => {
-    checkUser();
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
+    loadData();
   }, []);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/signin');
-      return;
-    }
-    setUser(user);
-    await fetchConversations(user.id);
-    initializeSocket(user.id);
-  };
-
-  const initializeSocket = (userId) => {
-    const socket = getSocket();
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      console.log('Socket connected');
-      socket.emit('user_online', userId);
-    });
-
-    socket.on('new_message', (message) => {
-      if (selectedConversation && message.chat_id === selectedConversation.id) {
-        setMessages(prev => [...prev, message]);
-        markAsRead(message.id);
-      }
-      // Update conversations list
-      fetchConversations(userId);
-    });
-
-    socket.on('user_typing', ({ userId: typingUserId, chatId }) => {
-      if (selectedConversation && chatId === selectedConversation.id && typingUserId !== userId) {
-        setIsTyping(true);
-        setTimeout(() => setIsTyping(false), 3000);
-      }
-    });
-  };
-
-  const fetchConversations = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('chats')
-        .select('*, profiles!chats_participant1_id_fkey(full_name, email), profiles!chats_participant2_id_fkey(full_name, email)')
-        .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
-        .order('last_message_at', { ascending: false });
-
-      if (error) throw error;
-      setConversations(data || []);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      toast.error('Failed to load conversations');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMessages = async (chatId) => {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
-
-      // Mark all messages as read
-      data?.filter(m => m.receiver_id === user.id && !m.read_at).forEach(m => {
-        markAsRead(m.id);
-      });
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      toast.error('Failed to load messages');
-    }
-  };
-
-  const markAsRead = async (messageId) => {
-    try {
-      await supabase
-        .from('messages')
-        .update({ read_at: new Date().toISOString() })
-        .eq('id', messageId);
-    } catch (error) {
-      console.error('Error marking message as read:', error);
-    }
+  const loadData = () => {
+    setConversations(mockConversations);
+    setLoading(false);
   };
 
   const selectConversation = (conversation) => {
     setSelectedConversation(conversation);
-    fetchMessages(conversation.id);
+    // Filter messages for this conversation
+    const convMessages = mockMessages.filter(m => m.chat_id === conversation.id);
+    setMessages(convMessages);
   };
 
-  const sendMessage = async (e) => {
+  const sendMessage = (e) => {
     e.preventDefault();
     if (!messageInput.trim() || !selectedConversation) return;
 
-    const message = {
-      id: crypto.randomUUID(),
+    const newMessage = {
+      id: `msg-${Date.now()}`,
       chat_id: selectedConversation.id,
-      sender_id: user.id,
-      receiver_id: selectedConversation.participant1_id === user.id 
-        ? selectedConversation.participant2_id 
-        : selectedConversation.participant1_id,
+      sender_id: mockUser.id,
+      receiver_id: selectedConversation.participant2_id,
       content: messageInput,
       created_at: new Date().toISOString(),
     };
 
-    try {
-      const { error } = await supabase
-        .from('messages')
-        .insert([message]);
-
-      if (error) throw error;
-
-      setMessages([...messages, message]);
-      setMessageInput('');
-
-      // Emit socket event
-      if (socketRef.current) {
-        socketRef.current.emit('send_message', message);
-      }
-
-      // Update chat last_message_at
-      await supabase
-        .from('chats')
-        .update({ last_message_at: new Date().toISOString() })
-        .eq('id', selectedConversation.id);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
-    }
-  };
-
-  const handleTyping = () => {
-    if (socketRef.current && selectedConversation) {
-      socketRef.current.emit('typing', {
-        userId: user.id,
-        chatId: selectedConversation.id,
-      });
-    }
+    setMessages([...messages, newMessage]);
+    setMessageInput('');
+    toast.success('Message sent (Demo Mode)');
   };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const getOtherParticipant = (conversation) => {
-    if (!conversation || !user) return null;
-    return conversation.participant1_id === user.id
-      ? { id: conversation.participant2_id, ...conversation.profiles }
-      : { id: conversation.participant1_id, ...conversation.profiles };
-  };
-
-  const getInitials = (email) => {
-    if (!email) return 'U';
-    return email.charAt(0).toUpperCase();
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.charAt(0).toUpperCase();
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header showBack user={user} />
+        <Header showBack />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">Loading...</div>
         </div>
@@ -208,7 +80,7 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header showBack={!selectedConversation} user={user} />
+      <Header showBack={!selectedConversation} />
 
       <div className="h-[calc(100vh-4rem)] flex">
         {/* Conversations List */}
@@ -227,37 +99,34 @@ export default function MessagesPage() {
                 </Button>
               </div>
             ) : (
-              conversations.map((conversation) => {
-                const participant = getOtherParticipant(conversation);
-                return (
-                  <div
-                    key={conversation.id}
-                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedConversation?.id === conversation.id ? 'bg-blue-50' : ''
-                    }`}
-                    onClick={() => selectConversation(conversation)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                          {getInitials(participant?.email)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">
-                          {participant?.full_name || participant?.email?.split('@')[0] || 'User'}
-                        </p>
-                        <p className="text-sm text-gray-600 truncate">{conversation.last_message}</p>
-                      </div>
-                      {conversation.last_message_at && (
-                        <span className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: true })}
-                        </span>
-                      )}
+              conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                    selectedConversation?.id === conversation.id ? 'bg-blue-50' : ''
+                  }`}
+                  onClick={() => selectConversation(conversation)}
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                        {getInitials(conversation.profiles?.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">
+                        {conversation.profiles?.full_name || 'User'}
+                      </p>
+                      <p className="text-sm text-gray-600 truncate">{conversation.last_message}</p>
                     </div>
+                    {conversation.last_message_at && (
+                      <span className="text-xs text-gray-500">
+                        {formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: true })}
+                      </span>
+                    )}
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
           </div>
         </div>
@@ -280,16 +149,13 @@ export default function MessagesPage() {
                   </Button>
                   <Avatar>
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                      {getInitials(getOtherParticipant(selectedConversation)?.email)}
+                      {getInitials(selectedConversation.profiles?.full_name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-semibold">
-                      {getOtherParticipant(selectedConversation)?.full_name || 
-                       getOtherParticipant(selectedConversation)?.email?.split('@')[0] || 
-                       'User'}
+                      {selectedConversation.profiles?.full_name || 'User'}
                     </p>
-                    {isTyping && <p className="text-xs text-gray-600">typing...</p>}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -312,22 +178,20 @@ export default function MessagesPage() {
                     <span className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded-full">Today</span>
                   </div>
                   {messages.map((message, index) => {
-                    const isOwnMessage = message.sender_id === user.id;
-                    const showAvatar = index === 0 || messages[index - 1].sender_id !== message.sender_id;
+                    const isOwnMessage = message.sender_id === mockUser.id;
 
                     return (
                       <div
                         key={message.id}
                         className={`flex gap-2 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                       >
-                        {!isOwnMessage && showAvatar && (
+                        {!isOwnMessage && (
                           <Avatar className="h-8 w-8">
                             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                              {getInitials(getOtherParticipant(selectedConversation)?.email)}
+                              {getInitials(selectedConversation.profiles?.full_name)}
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        {!isOwnMessage && !showAvatar && <div className="w-8" />}
                         <div
                           className={`max-w-md px-4 py-2 rounded-2xl ${
                             isOwnMessage
@@ -362,7 +226,6 @@ export default function MessagesPage() {
                     placeholder="Type a message..."
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyPress={handleTyping}
                     className="flex-1"
                   />
                   <Button 
@@ -379,7 +242,7 @@ export default function MessagesPage() {
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
                 <p className="text-xl mb-2">Select a conversation to start messaging</p>
-                <p className="text-sm">Choose from your existing conversations or start a new one</p>
+                <p className="text-sm">Choose from your existing conversations</p>
               </div>
             </div>
           )}
