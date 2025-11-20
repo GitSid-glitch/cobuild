@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,13 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { X, Upload } from 'lucide-react';
 import Header from '@/components/Header';
-import { supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 
 export default function PostIdeaPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,19 +22,6 @@ export default function PostIdeaPage() {
   const [tagInput, setTagInput] = useState('');
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/signin');
-      return;
-    }
-    setUser(user);
-  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -89,60 +73,16 @@ export default function PostIdeaPage() {
 
     setLoading(true);
 
-    try {
-      // Upload files to Supabase Storage
-      const uploadedUrls = [];
-      for (const file of files) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${uuidv4()}.${fileExt}`;
-        const filePath = `idea-attachments/${user.id}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('attachments')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('attachments')
-          .getPublicUrl(filePath);
-
-        uploadedUrls.push(publicUrl);
-      }
-
-      // Insert idea into database
-      const { data, error } = await supabase
-        .from('ideas')
-        .insert([
-          {
-            id: uuidv4(),
-            owner_id: user.id,
-            title: formData.title,
-            description: formData.description,
-            tags: formData.tags,
-            category: formData.category || 'General',
-            attachment_urls: uploadedUrls,
-            status: 'active',
-            collaborator_count: 0,
-          },
-        ])
-        .select();
-
-      if (error) throw error;
-
-      toast.success('Idea submitted successfully!');
+    // Simulate submission
+    setTimeout(() => {
+      toast.success('Idea submitted successfully! (Demo Mode)');
       router.push('/dashboard');
-    } catch (error) {
-      console.error('Error submitting idea:', error);
-      toast.error(error.message || 'Failed to submit idea');
-    } finally {
-      setLoading(false);
-    }
+    }, 1000);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Header showBack user={user} />
+      <Header showBack />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-8">
