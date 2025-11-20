@@ -19,35 +19,13 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkUser();
+    loadData();
   }, []);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/signin');
-      return;
-    }
-    setUser(user);
-    await fetchNotifications(user.id);
-  };
-
-  const fetchNotifications = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      toast.error('Failed to load notifications');
-    } finally {
-      setLoading(false);
-    }
+  const loadData = () => {
+    setUser(mockUser);
+    setNotifications(mockNotifications);
+    setLoading(false);
   };
 
   const markAsRead = async (notificationId) => {
