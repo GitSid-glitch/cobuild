@@ -28,21 +28,11 @@ export default function NotificationsPage() {
     setLoading(false);
   };
 
-  const markAsRead = async (notificationId) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId);
-
-      if (error) throw error;
-
-      setNotifications(notifications.map(n => 
-        n.id === notificationId ? { ...n, is_read: true } : n
-      ));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
+  const markAsRead = (notificationId) => {
+    setNotifications(notifications.map(n => 
+      n.id === notificationId ? { ...n, is_read: true } : n
+    ));
+    toast.success('Marked as read');
   };
 
   const getNotificationIcon = (type) => {
