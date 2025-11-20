@@ -26,17 +26,20 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkUser();
+    loadDemoData();
   }, []);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/signin');
-      return;
-    }
-    setUser(user);
-    await fetchDashboardData(user.id);
+  const loadDemoData = () => {
+    // Use mock user
+    const demoUser = {
+      id: 'demo-user-123',
+      email: 'demo@cobuild.com',
+      user_metadata: {
+        full_name: 'Demo User',
+      },
+    };
+    setUser(demoUser);
+    fetchDashboardData(demoUser.id);
   };
 
   const fetchDashboardData = async (userId) => {
