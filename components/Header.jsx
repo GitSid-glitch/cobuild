@@ -5,31 +5,28 @@ import { Bell, User, ArrowLeft, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/lib/supabase-client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export default function Header({ showBack = false, user = null, notificationCount = 0 }) {
+export default function Header({ showBack = false, notificationCount = 0 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState(user);
-
-  useEffect(() => {
-    if (!user) {
-      supabase.auth.getUser().then(({ data }) => {
-        setCurrentUser(data?.user);
-      });
+  
+  // Mock user data for demo
+  const mockUser = {
+    email: 'demo@cobuild.com',
+    user_metadata: {
+      full_name: 'Demo User',
+      avatar_url: null
     }
-  }, [user]);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
   };
 
   const getInitials = (email) => {
-    if (!email) return 'U';
+    if (!email) return 'D';
     return email.charAt(0).toUpperCase();
   };
+
+  // Check if we're on the landing page
+  const isLandingPage = pathname === '/';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white shadow-sm">
@@ -40,7 +37,7 @@ export default function Header({ showBack = false, user = null, notificationCoun
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
-          <Link href={currentUser ? "/dashboard" : "/"} className="flex items-center gap-2">
+          <Link href={isLandingPage ? "/" : "/dashboard"} className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
               <Lightbulb className="h-6 w-6 text-white" fill="currentColor" />
             </div>
@@ -49,7 +46,7 @@ export default function Header({ showBack = false, user = null, notificationCoun
         </div>
 
         <div className="flex items-center gap-4">
-          {currentUser ? (
+          {!isLandingPage && (
             <>
               <Link href="/notifications">
                 <Button variant="ghost" size="icon" className="relative">
@@ -63,17 +60,13 @@ export default function Header({ showBack = false, user = null, notificationCoun
               </Link>
               <Link href="/profile">
                 <Avatar className="h-9 w-9 cursor-pointer">
-                  <AvatarImage src={currentUser.user_metadata?.avatar_url} />
+                  <AvatarImage src={mockUser.user_metadata?.avatar_url} />
                   <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                    {getInitials(currentUser.email)}
+                    {getInitials(mockUser.email)}
                   </AvatarFallback>
                 </Avatar>
               </Link>
             </>
-          ) : (
-            <Link href="/signin">
-              <Button variant="outline">Sign In</Button>
-            </Link>
           )}
         </div>
       </div>

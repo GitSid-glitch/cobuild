@@ -25,9 +25,9 @@ export default function LandingPage() {
               Join a thriving community of innovators, collaborators, and investors. Transform your ideas into successful projects with the right team and resources.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
-              <Link href="/signup">
+              <Link href="/dashboard">
                 <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                  Join Now <ArrowRight className="ml-2 h-5 w-5" />
+                  Get Started <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Button size="lg" variant="outline" className="w-full sm:w-auto" onClick={scrollToFeatures}>
@@ -192,7 +192,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Build Something Amazing?</h2>
           <p className="text-xl text-blue-100 mb-8">Join thousands of innovators who are turning their ideas into reality</p>
-          <Link href="/signup">
+          <Link href="/dashboard">
             <Button size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
               Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
