@@ -42,50 +42,24 @@ export default function DashboardPage() {
     fetchDashboardData(demoUser.id);
   };
 
-  const fetchDashboardData = async (userId) => {
+  const fetchDashboardData = (userId) => {
     try {
-      // Fetch user's ideas
-      const { data: ideasData, error: ideasError } = await supabase
-        .from('ideas')
-        .select('*')
-        .eq('owner_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (ideasError) throw ideasError;
-      setIdeas(ideasData || []);
-
-      // Fetch collaborations
-      const { data: collabData, error: collabError } = await supabase
-        .from('collaborations')
-        .select('*, ideas(*)')
-        .eq('user_id', userId)
-        .order('last_active', { ascending: false });
-
-      if (collabError) throw collabError;
-      setCollaborations(collabData || []);
-
-      // Fetch notifications
-      const { data: notifData, error: notifError } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (notifError) throw notifError;
-      setNotifications(notifData || []);
+      // Use mock data
+      setIdeas(mockIdeas);
+      setCollaborations(mockCollaborations);
+      setNotifications(mockNotifications);
 
       // Calculate stats
-      const unreadCount = notifData?.filter(n => !n.is_read).length || 0;
-      const activeCount = ideasData?.filter(i => i.status === 'active').length || 0;
+      const unreadCount = mockNotifications.filter(n => !n.is_read).length;
+      const activeCount = mockIdeas.filter(i => i.status === 'active').length;
 
       setStats({
-        postedIdeas: ideasData?.length || 0,
+        postedIdeas: mockIdeas.length,
         activeProjects: activeCount,
         unreadNotifications: unreadCount,
       });
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('Error loading data:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
