@@ -71,13 +71,51 @@ export default function PostIdeaPage() {
       return;
     }
 
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      toast.error('You must be logged in to post an idea');
+      router.push('/signin');
+      return;
+    }
+    const user = JSON.parse(userStr);
+
     setLoading(true);
 
-    // Simulate submission
-    setTimeout(() => {
-      toast.success('Idea submitted successfully! (Demo Mode)');
-      router.push('/dashboard');
-    }, 1000);
+    try {
+      // Convert files to Base64
+      const attachments = await Promise.all(files.map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }));
+
+      const response = await fetch('/api/ideas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          attachments,
+          owner_id: user.email, // Using email as ID for now since we don't have user IDs in localStorage easily accessible without another fetch
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to create idea');
+
+      const data = await response.json();
+
+      toast.success('Idea submitted successfully!');
+      router.push(`/idea/${data.ideaId}`);
+    } catch (error) {
+      console.error('Error submitting idea:', error);
+      toast.error('Failed to submit idea');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -37,7 +37,11 @@ export async function POST(req) {
     });
 
     return NextResponse.json(
-      { message: 'User created', userId: result.insertedId },
+      { 
+        message: 'User created', 
+        userId: result.insertedId,
+        user: { email, fullName }
+      },
       { status: 201 }
     );
   } catch (error) {

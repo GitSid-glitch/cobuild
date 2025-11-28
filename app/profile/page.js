@@ -8,11 +8,38 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Lightbulb, Star, Users, TrendingUp, Award } from 'lucide-react';
 import Header from '@/components/Header';
-import { mockUser, mockProfile, mockIdeas, mockCollaborations } from '@/lib/mock-data';
+import { mockIdeas, mockCollaborations } from '@/lib/mock-data';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      router.push('/signin');
+      return;
+    }
+    const userData = JSON.parse(userStr);
+    setUser(userData);
+    fetchProfile(userData.email);
+  }, []);
+
+  const fetchProfile = async (email) => {
+    try {
+      const response = await fetch(`/api/profile?email=${email}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProfile(data);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const badges = [
     { title: 'Early Adopter', icon: Star, color: 'bg-yellow-100 text-yellow-700' },
@@ -26,9 +53,13 @@ export default function ProfilePage() {
     return email.charAt(0).toUpperCase();
   };
 
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Header showBack />
+      <Header showBack user={user} />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         {/* Profile Card */}
@@ -37,18 +68,18 @@ export default function ProfilePage() {
             <div className="flex items-start justify-between">
               <div className="flex gap-6">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={mockProfile.avatar_url} />
+                  <AvatarImage src={profile?.avatar_url} />
                   <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-2xl">
-                    {getInitials(mockUser.email)}
+                    {getInitials(user?.email)}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h1 className="text-2xl font-bold mb-1">{mockProfile.full_name}</h1>
-                  <p className="text-gray-600 mb-2">{mockUser.email}</p>
-                  <p className="text-gray-700 mb-4">{mockProfile.bio}</p>
+                  <h1 className="text-2xl font-bold mb-1">{profile?.fullName || user?.fullName || 'User'}</h1>
+                  <p className="text-gray-600 mb-2">{user?.email}</p>
+                  <p className="text-gray-700 mb-4">{profile?.bio || 'No bio yet.'}</p>
                   <div className="flex items-center gap-2">
                     <Award className="h-5 w-5 text-purple-600" />
-                    <span className="font-semibold">{mockProfile.reputation_points} Reputation Points</span>
+                    <span className="font-semibold">{profile?.reputation_points || 0} Reputation Points</span>
                   </div>
                 </div>
               </div>
@@ -62,9 +93,13 @@ export default function ProfilePage() {
           <CardContent className="p-6">
             <h2 className="text-xl font-bold mb-4">Skills & Expertise</h2>
             <div className="flex flex-wrap gap-2">
-              {mockProfile.skills.map((skill, index) => (
-                <Badge key={index} variant="secondary" className="px-4 py-2">{skill}</Badge>
-              ))}
+              {profile?.skills && profile.skills.length > 0 ? (
+                profile.skills.map((skill, index) => (
+                  <Badge key={index} variant="secondary" className="px-4 py-2">{skill}</Badge>
+                ))
+              ) : (
+                <p className="text-gray-500">No skills added yet.</p>
+              )}
             </div>
           </CardContent>
         </Card>

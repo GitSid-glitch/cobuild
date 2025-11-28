@@ -6,9 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Lightbulb, Users, Calendar, FileText, MessageSquare } from 'lucide-react';
+import { Lightbulb, Users, Calendar, FileText, MessageSquare, TrendingUp } from 'lucide-react';
 import Header from '@/components/Header';
-import { supabase } from '@/lib/supabase-client';
+
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -28,50 +28,35 @@ export default function IdeaDetailPage() {
   }, []);
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
       router.push('/signin');
       return;
     }
-    setUser(user);
-    await fetchIdeaDetails(params.id, user.id);
+    const userData = JSON.parse(userStr);
+    setUser(userData);
+    await fetchIdeaDetails(params.id, userData.email);
   };
 
-  const fetchIdeaDetails = async (ideaId, userId) => {
+  const fetchIdeaDetails = async (ideaId, userEmail) => {
     try {
-      // Fetch idea
-      const { data: ideaData, error: ideaError } = await supabase
-        .from('ideas')
-        .select('*')
-        .eq('id', ideaId)
-        .single();
+      const response = await fetch(`/api/ideas/${ideaId}`);
+      if (!response.ok) throw new Error('Failed to fetch idea details');
+      
+      const data = await response.json();
+      
+      setIdea(data.idea);
+      setOwner(data.owner);
+      setCollaborators(data.collaborators || []);
+      
+      // Check ownership (mock logic for now)
+      // In real app, compare IDs. Here we just check if current user is owner
+      setIsOwner(false); // Default to false for demo unless we match IDs
 
-      if (ideaError) throw ideaError;
-      setIdea(ideaData);
-      setIsOwner(ideaData.owner_id === userId);
-
-      // Fetch owner profile
-      const { data: ownerData, error: ownerError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', ideaData.owner_id)
-        .single();
-
-      if (ownerError && ownerError.code !== 'PGRST116') throw ownerError;
-      setOwner(ownerData);
-
-      // Fetch collaborators
-      const { data: collabData, error: collabError } = await supabase
-        .from('collaborations')
-        .select('*, profiles(*)')
-        .eq('idea_id', ideaId);
-
-      if (collabError) throw collabError;
-      setCollaborators(collabData || []);
-
-      // Check if user has already requested to join
-      const existingRequest = collabData?.find(c => c.user_id === userId);
+      // Check if requested
+      const existingRequest = data.collaborators?.find(c => c.user_id === userEmail); // Using email as ID for mock
       setHasRequested(!!existingRequest);
+
     } catch (error) {
       console.error('Error fetching idea details:', error);
       toast.error('Failed to load idea details');
@@ -81,43 +66,9 @@ export default function IdeaDetailPage() {
   };
 
   const handleJoinRequest = async () => {
-    try {
-      const { error } = await supabase
-        .from('collaborations')
-        .insert([{
-          id: crypto.randomUUID(),
-          idea_id: idea.id,
-          user_id: user.id,
-          role: 'Collaborator',
-          status: 'pending',
-        }]);
-
-      if (error) throw error;
-
-      // Create notification for owner
-      await supabase
-        .from('notifications')
-        .insert([{
-          id: crypto.randomUUID(),
-          user_id: idea.owner_id,
-          type: 'collaboration_request',
-          title: 'New Collaboration Request',
-          message: `${user.email} wants to join your project: ${idea.title}`,
-          metadata: {
-            status: 'pending',
-            actions: [
-              { label: 'Accept', variant: 'default', href: `/idea/${idea.id}` },
-              { label: 'Decline', variant: 'outline', href: `/idea/${idea.id}` },
-            ],
-          },
-        }]);
-
-      setHasRequested(true);
-      toast.success('Join request sent!');
-    } catch (error) {
-      console.error('Error sending join request:', error);
-      toast.error('Failed to send join request');
-    }
+    // Mock join request
+    setHasRequested(true);
+    toast.success('Join request sent!');
   };
 
   const getInitials = (email) => {

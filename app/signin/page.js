@@ -35,6 +35,7 @@ export default function SignInPage() {
         throw new Error(data.message || 'Failed to sign in');
       }
 
+      localStorage.setItem('user', JSON.stringify(data.user));
       toast.success('Welcome back!');
       router.push('/dashboard');
     } catch (error) {

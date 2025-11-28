@@ -60,6 +60,7 @@ export default function SignUpPage() {
         throw new Error(data.message || 'Failed to sign up');
       }
 
+      localStorage.setItem('user', JSON.stringify(data.user));
       toast.success('Account created successfully!');
       router.push('/dashboard');
     } catch (error) {

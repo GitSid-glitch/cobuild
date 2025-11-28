@@ -10,9 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Upload, X } from 'lucide-react';
 import Header from '@/components/Header';
-import { supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -21,9 +19,9 @@ export default function EditProfilePage() {
     full_name: '',
     bio: '',
     skills: [],
+    avatar_url: '',
   });
   const [skillInput, setSkillInput] = useState('');
-  const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -32,30 +30,29 @@ export default function EditProfilePage() {
   }, []);
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
       router.push('/signin');
       return;
     }
-    setUser(user);
-    await fetchProfile(user.id);
+    const userData = JSON.parse(userStr);
+    setUser(userData);
+    await fetchProfile(userData.email);
   };
 
-  const fetchProfile = async (userId) => {
+  const fetchProfile = async (email) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
+      const response = await fetch(`/api/profile?email=${email}`);
+      if (!response.ok) throw new Error('Failed to fetch profile');
+      
+      const data = await response.json();
       
       if (data) {
         setProfile({
-          full_name: data.full_name || '',
+          full_name: data.fullName || '',
           bio: data.bio || '',
           skills: data.skills || [],
+          avatar_url: data.avatar_url || '',
         });
         setAvatarPreview(data.avatar_url);
       }
@@ -90,8 +87,13 @@ export default function EditProfilePage() {
         toast.error('Avatar image must be under 5MB');
         return;
       }
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result);
+        setProfile(prev => ({ ...prev, avatar_url: reader.result }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -100,40 +102,21 @@ export default function EditProfilePage() {
     setLoading(true);
 
     try {
-      let avatarUrl = profile.avatar_url;
-
-      // Upload avatar if changed
-      if (avatarFile) {
-        const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `${user.id}-${uuidv4()}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('attachments')
-          .upload(filePath, avatarFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('attachments')
-          .getPublicUrl(filePath);
-
-        avatarUrl = publicUrl;
-      }
-
-      // Update profile
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
           full_name: profile.full_name,
           bio: profile.bio,
           skills: profile.skills,
-          avatar_url: avatarUrl,
-          updated_at: new Date().toISOString(),
-        });
+          avatar_url: profile.avatar_url,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Failed to update profile');
 
       toast.success('Profile updated successfully!');
       router.push('/profile');
