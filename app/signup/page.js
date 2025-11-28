@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lightbulb, Eye, EyeOff } from 'lucide-react';
-import { supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 
 export default function SignUpPage() {
@@ -41,19 +40,27 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
           data: {
             full_name: formData.fullName,
           },
-        },
+        }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      toast.success('Account created successfully! Please check your email to verify.');
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to sign up');
+      }
+
+      toast.success('Account created successfully!');
       router.push('/dashboard');
     } catch (error) {
       toast.error(error.message || 'Failed to sign up');
